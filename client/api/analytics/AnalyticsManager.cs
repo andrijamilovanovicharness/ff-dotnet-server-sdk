@@ -60,13 +60,7 @@ namespace io.harness.cfsdk.client.api.analytics
 
         public void PushToQueue(dto.Target target, FeatureConfig featureConfig, Variation variation)
         {
-            Analytics analytics =
-                Analytics.Builder()
-                    .featureConfig(featureConfig)
-                    .target(target)
-                    .variation(variation)
-                    .eventType(EventType.METRICS)
-                    .Build();
+            Analytics analytics = new Analytics(featureConfig, target, variation, EventType.METRICS);
             long sequence = -1;
             if (!ringBuffer.TryNext(out sequence)) // Grab the next sequence if we can
             {

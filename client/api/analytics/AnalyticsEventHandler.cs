@@ -39,14 +39,7 @@ namespace io.harness.cfsdk.client.api.analytics
                         analytics.Target.Identifier,
                         analytics);
                     int count = analyticsCache.getIfPresent(analytics);
-                    if (count == 0)
-                    {
-                        analyticsCache.Put(analytics, 1);
-                    }
-                    else
-                    {
-                        analyticsCache.Put(analytics, count + 1);
-                    }
+                    analyticsCache.Put(analytics, count + 1);
                     break;
                 default:
                     break;

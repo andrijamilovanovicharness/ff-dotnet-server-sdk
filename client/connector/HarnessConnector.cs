@@ -47,6 +47,7 @@ namespace io.harness.cfsdk.client.connector
             try
             {
                 Client client = new Client(this.apiHttpClient);
+                client.BaseUrl = this.config.ConfigUrl;
                 IEnumerable<FeatureConfig> respFeatures = client.ClientEnvFeatureConfigsGetAsync(environment, cluster).GetAwaiter().GetResult();
                 return respFeatures;
             }
@@ -61,6 +62,7 @@ namespace io.harness.cfsdk.client.connector
             try
             {
                 Client client = new Client(this.apiHttpClient);
+                client.BaseUrl = this.config.ConfigUrl;
                 IEnumerable<Segment> respSegments = client.ClientEnvTargetSegmentsGetAsync(environment, cluster).GetAwaiter().GetResult();
                 return respSegments;
             }
@@ -75,6 +77,7 @@ namespace io.harness.cfsdk.client.connector
             try
             {
                 Client client = new Client(this.apiHttpClient);
+                client.BaseUrl = this.config.ConfigUrl;
                 FeatureConfig feature = client.ClientEnvFeatureConfigsGetAsync(identifier, this.environment, this.cluster).GetAwaiter().GetResult();
                 return feature;
             }
@@ -88,6 +91,7 @@ namespace io.harness.cfsdk.client.connector
             try
             {
                 Client client = new Client(this.apiHttpClient);
+                client.BaseUrl = this.config.ConfigUrl;
                 Segment segment = client.ClientEnvTargetSegmentsGetAsync(identifer, this.environment, this.cluster).GetAwaiter().GetResult();
                 return segment;
             }
@@ -103,15 +107,22 @@ namespace io.harness.cfsdk.client.connector
         }
         public void PostMetrics(HarnessOpenMetricsAPIService.Metrics metrics)
         {
-            DateTime startTime = DateTime.Now;
-            HarnessOpenMetricsAPIService.Client client = new HarnessOpenMetricsAPIService.Client( this.metricHttpClient );
-
-            client.MetricsAsync(environment, cluster, metrics).GetAwaiter().GetResult();
-
-            DateTime endTime = DateTime.Now;
-            if ((endTime - startTime).TotalMilliseconds > config.MetricsServiceAcceptableDuration)
+            try
             {
-                Log.Warning("Metrics service API duration=[{}]", (endTime - startTime));
+                DateTime startTime = DateTime.Now;
+                HarnessOpenMetricsAPIService.Client client = new HarnessOpenMetricsAPIService.Client(this.metricHttpClient);
+
+                client.MetricsAsync(environment, cluster, metrics).GetAwaiter().GetResult();
+
+                DateTime endTime = DateTime.Now;
+                if ((endTime - startTime).TotalMilliseconds > config.MetricsServiceAcceptableDuration)
+                {
+                    Log.Warning("Metrics service API duration=[{}]", (endTime - startTime));
+                }
+            }
+            catch (ApiException apiException)
+            {
+                // TODO: handle exception
             }
         }
         public string Authenticate()
@@ -123,6 +134,7 @@ namespace io.harness.cfsdk.client.connector
                 authenticationRequest.Target = new Target2 { Identifier = "" };
 
                 Client client = new Client(this.apiHttpClient);
+                client.BaseUrl = this.config.ConfigUrl;
 
                 AuthenticationResponse response = client.ClientAuthAsync(authenticationRequest).GetAwaiter().GetResult();
                 this.token = response.AuthToken;

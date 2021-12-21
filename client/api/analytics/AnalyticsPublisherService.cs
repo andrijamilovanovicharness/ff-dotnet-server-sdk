@@ -28,7 +28,7 @@ namespace io.harness.cfsdk.client.api.analytics
         private static string SDK_VERSION = "SDK_VERSION";
 
 
-        private string sdkVerion = "1.0.1";
+        private Version sdkVersion = typeof(AnalyticsPublisherService).Assembly.GetName().Version;
 
         private AnalyticsCache analyticsCache;
         private string environmentID;
@@ -44,7 +44,7 @@ namespace io.harness.cfsdk.client.api.analytics
 
         public void sendDataAndResetCache()
         {
-            Log.Information("Reading from queue and building cache, SDL version: " + sdkVerion);
+            Log.Information("Reading from queue and building cache, SDL version: " + sdkVersion);
 
             IDictionary<Analytics, int> all = analyticsCache.GetAllElements();
 
@@ -95,7 +95,7 @@ namespace io.harness.cfsdk.client.api.analytics
                 if (!globalTargetSet.Contains(target) && !target.IsPrivate)
                 {
                     stagingTargetSet.Add(target);
-                    Dictionary<String, string> attributes = target.Attributes;
+                    Dictionary<string, string> attributes = target.Attributes;
                     attributes.ToList().ForEach(el =>
                        {
                            KeyValue keyValue = new KeyValue();
@@ -136,7 +136,7 @@ namespace io.harness.cfsdk.client.api.analytics
                 setMetricsAttriutes(metricsData, SDK_TYPE, SERVER);
 
                 setMetricsAttriutes(metricsData, SDK_LANGUAGE, ".NET");
-                setMetricsAttriutes(metricsData, SDK_VERSION, sdkVerion);
+                setMetricsAttriutes(metricsData, SDK_VERSION, sdkVersion.ToString() );
                 metrics.MetricsData.Add(metricsData);
             }
 

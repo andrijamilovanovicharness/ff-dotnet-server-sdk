@@ -10,16 +10,14 @@ namespace io.harness.cfsdk.client.api.rules
         public DistributionProcessor(Serve serve)
         {
             this.distribution = serve.Distribution;
-
-            if (distribution.Variations == null)
-            {
-                throw new ArgumentNullException("Variations are null");
-            }
         }
 
         public string loadKeyName(dto.Target target)
         {
-            string variation = "";
+            string variation = null;
+            if (distribution == null || distribution.Variations == null)
+                return variation;
+
             foreach (WeightedVariation weightedVariation in distribution.Variations)
             {
                 variation = weightedVariation.Variation;

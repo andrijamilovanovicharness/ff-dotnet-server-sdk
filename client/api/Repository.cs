@@ -12,10 +12,6 @@ namespace io.harness.cfsdk.client.api
         void OnSegmentStored(string identifier);
         void OnSegmentDeleted(string identifier);
     }
-    /*
-     *             featureCache = new FeatureConfigCache();
-            segmentCache = new SegmentCache();
-     */
     internal interface IRepository
     {
         void SetFlag(string identifier, FeatureConfig featureConfig);

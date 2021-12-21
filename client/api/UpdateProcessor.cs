@@ -78,25 +78,25 @@ namespace io.harness.cfsdk.client.api
             {
                 if (message.Domain.Equals("flag"))
                 {
-                    FeatureConfig feature = this.connector.GetFlag(message.Identifier);
                     if (message.Event.Equals("delete"))
                     {
                         this.repository.DeleteFlag(message.Identifier);
                     }
                     else if (message.Event.Equals("create") || message.Event.Equals("patch"))
                     {
+                        FeatureConfig feature = this.connector.GetFlag(message.Identifier);
                         this.repository.SetFlag(message.Identifier, feature);
                     }
                 }
                 else if (message.Domain.Equals("target-segment"))
                 {
-                    Segment segment = this.connector.GetSegment(message.Identifier);
                     if (message.Event.Equals("delete"))
                     {
                         this.repository.DeleteSegment(message.Identifier);
                     }
                     else if (message.Event.Equals("create") || message.Event.Equals("patch"))
                     {
+                        Segment segment = this.connector.GetSegment(message.Identifier);
                         this.repository.SetSegment(message.Identifier, segment);
                     }
                 }

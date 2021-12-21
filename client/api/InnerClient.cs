@@ -150,7 +150,7 @@ namespace io.harness.cfsdk.client.api
 
         private void Notify(Event e)
         {
-            foreach(IObserver<Event> ob in observers.Values)
+            foreach(IObserver<Event> ob in observers.Keys)
             {
                 if (observers.TryGetValue(ob, out HashSet<NotificationType> set))
                 {

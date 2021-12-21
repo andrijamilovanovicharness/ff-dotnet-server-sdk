@@ -1,11 +1,13 @@
 ﻿using System;
 namespace io.harness.cfsdk.client.api
 {
+    [Flags]
     public enum NotificationType
     {
-        READY,
-        FAILED,
-        CHANGED
+        READY = 0,
+        FAILED = 1,
+        CHANGED = 2,
+        ALL = READY | FAILED | CHANGED
     }
     public struct Event
     {

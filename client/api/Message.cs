@@ -6,6 +6,6 @@ namespace io.harness.cfsdk.client.api
         public string Event { get; set; }
         public string Domain { get; set; }
         public string Identifier { get; set; }
-        public int Version { get; set; }
+        public long Version { get; set; }
     }
 }

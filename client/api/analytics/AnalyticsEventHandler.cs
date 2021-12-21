@@ -9,7 +9,7 @@ namespace io.harness.cfsdk.client.api.analytics
     //functionalities 1) Listens to the queue and take out the incoming object 2) Place them
     //appropriately in the cache for further processing
 
-    public class AnalyticsEventHandler : IEventHandler<Analytics>
+    internal class AnalyticsEventHandler : IEventHandler<Analytics>
     {
         private AnalyticsCache analyticsCache;
         private AnalyticsPublisherService analyticsPublisherService;
@@ -26,7 +26,7 @@ namespace io.harness.cfsdk.client.api.analytics
                 case EventType.TIMER:
                     try
                     {
-                        analyticsPublisherService.sendDataAndResetCache().Wait();
+                        analyticsPublisherService.sendDataAndResetCache();
                     }
                     catch (CfClientException e)
                     {

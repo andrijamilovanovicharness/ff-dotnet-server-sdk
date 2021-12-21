@@ -1,4 +1,5 @@
 ﻿using io.harness.cfsdk.client.cache;
+using io.harness.cfsdk.client.connector;
 using io.harness.cfsdk.client.dto;
 using io.harness.cfsdk.HarnessOpenAPIService;
 using io.harness.cfsdk.HarnessOpenMetricsAPIService;
@@ -10,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace io.harness.cfsdk.client.api.analytics
 {
-    public class AnalyticsPublisherService
+    internal class AnalyticsPublisherService
     {
         private static string FEATURE_NAME_ATTRIBUTE = "featureName";
         private static string FEATURE_VALUE_ATTRIBUTE = "featureValue";
@@ -29,23 +30,19 @@ namespace io.harness.cfsdk.client.api.analytics
 
         private string sdkVerion = "1.0.1";
 
-        private DefaultApi metricsAPI;
         private AnalyticsCache analyticsCache;
         private string environmentID;
         private string cluster;
-        private Config config;
+        private IConnector connector;
 
-        public AnalyticsPublisherService(string jwtToken, Config config, string environmentID, string cluster, AnalyticsCache analyticsCache)
+
+        public AnalyticsPublisherService(IConnector connector, AnalyticsCache analyticsCache)
         {
-
-            metricsAPI = MetricsApiFactory.create(jwtToken, config);
             this.analyticsCache = analyticsCache;
-            this.environmentID = environmentID;
-            this.cluster = cluster;
-            this.config = config;
+            this.connector = connector;
         }
 
-        public async Task sendDataAndResetCache()
+        public void sendDataAndResetCache()
         {
             Log.Information("Reading from queue and building cache, SDL version: " + sdkVerion);
 
@@ -59,15 +56,7 @@ namespace io.harness.cfsdk.client.api.analytics
                     if ((metrics.MetricsData != null && metrics.MetricsData.Count >0)
                         || (metrics.TargetData != null && metrics.TargetData.Count > 0))
                     {
-                        DateTime startTime = DateTime.Now;
-                        HarnessOpenMetricsAPIService.Client client = new HarnessOpenMetricsAPIService.Client(metricsAPI.httpClient);
-                        Log.Information("Trying to send --->  {Eid} ----- {@mb}", environmentID, metrics);
-                        await client.MetricsAsync(environmentID, cluster, metrics);
-                        DateTime endTime = DateTime.Now;
-                        if ((endTime - startTime).TotalMilliseconds > config.MetricsServiceAcceptableDuration)
-                        {
-                            Log.Warning("Metrics service API duratopm=[{}]", (endTime - startTime));
-                        }
+                        connector.PostMetrics(metrics);
                     }
 
                     stagingTargetSet.ToList().ForEach(element => globalTargetSet.Add(element));
@@ -144,7 +133,6 @@ namespace io.harness.cfsdk.client.api.analytics
                 {
                     setMetricsAttriutes(metricsData, TARGET_ATTRIBUTE, target.Identifier);
                 }
-                setMetricsAttriutes(metricsData, JAR_VERSION, "3.1");
                 setMetricsAttriutes(metricsData, SDK_TYPE, SERVER);
 
                 setMetricsAttriutes(metricsData, SDK_LANGUAGE, ".NET");

@@ -1,89 +1,151 @@
-﻿using io.harness.cfsdk.client.api;
-using io.harness.cfsdk.client.api.rules;
-using io.harness.cfsdk.client.cache;
-using io.harness.cfsdk.HarnessOpenAPIService;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Linq;
-using System.Reflection;
 using System.Text.RegularExpressions;
-using Microsoft.VisualBasic;
+using io.harness.cfsdk.client.api.rules;
+using io.harness.cfsdk.client.dto;
+using io.harness.cfsdk.HarnessOpenAPIService;
+using Newtonsoft.Json.Linq;
 
-namespace io.harness.cfsdk.client
+namespace io.harness.cfsdk.client.api
 {
-    public class Evaluator
+    interface IEvaluatorCallback
     {
-        private SegmentCache segmentCache;
-
-        public Evaluator(SegmentCache segmentCache)
+        void evaluationProcessed(FeatureConfig featureConfig, dto.Target target, Variation variation);
+    }
+    interface IEvaluator
+    {
+        bool BoolVariation(string key, dto.Target target, bool defaultValue);
+        string StringVariation(string key, dto.Target target, string defaultValue);
+        double NumberVariation(string key, dto.Target target, double defaultValue);
+        JObject JsonVariation(string key, dto.Target target, JObject defaultValue);
+    }
+    internal class Evaluator : IEvaluator
+    {
+        private IRepository repository;
+        private IEvaluatorCallback callback;
+        public Evaluator(IRepository repository, IEvaluatorCallback callback)
         {
-            this.segmentCache = segmentCache;
+            this.repository = repository;
+            this.callback = callback;
         }
-
-        public Variation evaluate(FeatureConfig featureConfig, dto.Target target)
+        private Variation EvaluateVariation(string key, dto.Target target, FeatureConfigKind kind)
         {
-            string servedVariation = featureConfig.OffVariation;
-            if (featureConfig.State == FeatureState.Off)
-            {
-                return getVariation(featureConfig.Variations, servedVariation);
-            }
+            FeatureConfig featureConfig = this.repository.GetFlag(key);
+            if (featureConfig == null || featureConfig.Kind != kind)
+                return null;
 
-            servedVariation = processVariationMap(target, featureConfig.VariationToTargetMap);
-            if (servedVariation != null)
+            ICollection<Prerequisite> prerequisites = featureConfig.Prerequisites;
+            if (prerequisites != null)
             {
-                return getVariation(featureConfig.Variations, servedVariation);
-            }
-
-
-            servedVariation = processRules(featureConfig, target);
-            if (servedVariation != null)
-            {
-                return getVariation(featureConfig.Variations, servedVariation);
-            }
-
-            Serve defaultServe = featureConfig.DefaultServe;
-            servedVariation = processDefaultServe(defaultServe, target);
-
-            return getVariation(featureConfig.Variations, servedVariation);
-        }
-        private string processDefaultServe(Serve defaultServe, dto.Target target)
-        {
-            if (defaultServe == null)
-            {
-                throw new CfClientException("The serving rule is missing default serve.");
-            }
-            string servedVariation;
-            if (defaultServe.Variation != null)
-            {
-                servedVariation = defaultServe.Variation;
-            }
-            else if (defaultServe.Distribution != null)
-            {
-                DistributionProcessor distributionProcessor = new DistributionProcessor(defaultServe);
-                servedVariation = distributionProcessor.loadKeyName(target);
-            }
-            else
-            {
-                throw new CfClientException("The default serving rule is invalid.");
-            }
-            return servedVariation;
-        }
-
-        private Variation getVariation(ICollection<Variation> variations, string variationIdentifier)
-        {
-            foreach (Variation variation in variations)
-            {
-                if (variationIdentifier == variation.Identifier)
+                bool prereq = checkPreRequisite(featureConfig, target);
+                if( !prereq)
                 {
-                    return variation;
+                    return featureConfig.Variations.First(v => v.Identifier.Equals(featureConfig.OffVariation));
                 }
             }
-            throw new CfClientException("Invalid variation identifier " + variationIdentifier + ".");
+
+            Variation var = Evaluate(featureConfig, target);
+            if(var != null)
+            {
+                this.callback.evaluationProcessed(featureConfig, target, var);
+            }
+            return var;
         }
 
+        public bool BoolVariation(string key, dto.Target target, bool defaultValue)
+        {
+            Variation variation = EvaluateVariation(key, target, FeatureConfigKind.Boolean);
+            bool res;
+            return (variation != null && Boolean.TryParse(variation.Value, out res)) ? res : defaultValue;
+        }
 
-        private string processVariationMap(dto.Target target, ICollection<VariationMap> variationMaps)
+        public JObject JsonVariation(string key, dto.Target target, JObject defaultValue)
+        {
+            Variation variation = EvaluateVariation(key, target, FeatureConfigKind.Json);
+            return variation != null ? JObject.Parse(variation.Value) : defaultValue;
+        }
+
+        public double NumberVariation(string key, dto.Target target, double defaultValue)
+        {
+            Variation variation = EvaluateVariation(key, target, FeatureConfigKind.Int);
+            double res;
+            return (variation != null && Double.TryParse(variation.Value, out res)) ? res : defaultValue;
+        }
+
+        public string StringVariation(string key, dto.Target target, string defaultValue)
+        {
+            Variation variation = EvaluateVariation(key, target, FeatureConfigKind.String);
+            return variation != null ? variation.Value : defaultValue;
+        }
+
+        private bool checkPreRequisite(FeatureConfig parentFeatureConfig, dto.Target target)
+        {
+            bool result = true;
+            List<Prerequisite> prerequisites = parentFeatureConfig.Prerequisites.ToList();
+            if ( prerequisites != null && prerequisites.Count > 0)
+            {
+                foreach (Prerequisite pqs in prerequisites)
+                {
+                    FeatureConfig preReqFeatureConfig = this.repository.GetFlag(pqs.Feature);
+                    if (preReqFeatureConfig == null)
+                    {
+                        return true;
+                    }
+
+                    // Pre requisite variation value evaluated below
+                    Variation preReqEvaluatedVariation = Evaluate(preReqFeatureConfig, target);
+                    if(preReqEvaluatedVariation == null)
+                    {
+                        return true;
+                    }
+
+                    List<string> validPreReqVariations = pqs.Variations.ToList();
+                    if (!validPreReqVariations.Contains(preReqEvaluatedVariation.ToString()))
+                    {
+                        return false;
+                    }
+                    else
+                    {
+                        result = checkPreRequisite(preReqFeatureConfig, target);
+                    }
+                }
+            }
+            return result;
+        }
+        private Variation Evaluate(FeatureConfig featureConfig, dto.Target target)
+        {
+            string variation = featureConfig.OffVariation;
+            if (featureConfig.State == FeatureState.On)
+            {
+                variation = null;
+                if (featureConfig.VariationToTargetMap != null)
+                {
+                    variation = evaluateVariationMap(target, featureConfig.VariationToTargetMap);
+                }
+                if (variation == null)
+                {
+                    variation = evaluateRules(featureConfig, target);
+                }
+                if (variation == null)
+                {
+                    variation = evaluateDistribution(featureConfig, target);
+                }
+                if (variation == null)
+                {
+                    variation = featureConfig.DefaultServe.Variation;
+                }
+            }
+
+            if(variation != null && featureConfig.Variations != null)
+            {
+                return featureConfig.Variations.First(var => var.Identifier.Equals(variation));
+            }
+            return null;
+
+        }
+
+        private string evaluateVariationMap(dto.Target target, ICollection<VariationMap> variationMaps)
         {
             if (variationMaps == null)
             {
@@ -109,7 +171,7 @@ namespace io.harness.cfsdk.client
                 {
                     foreach (string segmentIdentifier in segmentIdentifiers)
                     {
-                        Segment segment = segmentCache.getIfPresent(segmentIdentifier);
+                        Segment segment = this.repository.GetSegment(segmentIdentifier);
                         if (segment != null)
                         {
                             ICollection<HarnessOpenAPIService.Target> includedTargets = segment.Included;
@@ -130,8 +192,7 @@ namespace io.harness.cfsdk.client
             return null;
         }
 
-
-        private string processRules(FeatureConfig featureConfig, dto.Target target)
+        private string evaluateRules(FeatureConfig featureConfig, dto.Target target)
         {
             ICollection<ServingRule> originalServingRules = featureConfig.Rules;
             List<ServingRule> servingRules = ((List<ServingRule>)originalServingRules).OrderBy(sr => sr.Priority).ToList();
@@ -140,7 +201,7 @@ namespace io.harness.cfsdk.client
             string servedVariation = null;
             foreach (ServingRule servingRule in servingRules)
             {
-                servedVariation = processServingRule(servingRule, target);
+                servedVariation = evaluateServingRule(servingRule, target);
                 if (servedVariation != null)
                 {
                     return servedVariation;
@@ -149,7 +210,7 @@ namespace io.harness.cfsdk.client
             return null;
         }
 
-        private string processServingRule(ServingRule servingRule, dto.Target target)
+        private string evaluateServingRule(ServingRule servingRule, dto.Target target)
         {
             foreach (Clause clause in servingRule.Clauses.Where(cl => cl != null))
             {
@@ -167,11 +228,16 @@ namespace io.harness.cfsdk.client
             }
             else
             {
-                DistributionProcessor distributionProcessor =
-                    new DistributionProcessor(servingRule.Serve);
+                DistributionProcessor distributionProcessor = new DistributionProcessor(servingRule.Serve);
                 servedVariation = distributionProcessor.loadKeyName(target);
             }
             return servedVariation;
+        }
+
+        private string evaluateDistribution(FeatureConfig featureConfig, dto.Target target)
+        {
+            DistributionProcessor distributionProcessor = new DistributionProcessor(featureConfig.DefaultServe);
+            return distributionProcessor.loadKeyName(target);
         }
 
         private bool process(Clause clause, dto.Target target)
@@ -221,7 +287,7 @@ namespace io.harness.cfsdk.client
                 case "segmentMatch":
                     foreach (string segmentIdentifier in value)
                     {
-                        Segment segment = segmentCache.getIfPresent(segmentIdentifier);
+                        Segment segment = this.repository.GetSegment(segmentIdentifier);
                         if (segment != null)
                         {
                             List<HarnessOpenAPIService.Target> excludedTargets = segment.Excluded.ToList();
@@ -281,6 +347,5 @@ namespace io.harness.cfsdk.client
             }
 
         }
-
     }
 }

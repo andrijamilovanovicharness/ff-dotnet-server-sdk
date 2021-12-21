@@ -62,13 +62,6 @@ namespace io.harness.cfsdk.client.cache
     internal class AnalyticsCache : MemoryCache<Analytics, int>
     {
     }
-    internal class FeatureConfigCache : MemoryCache<string, FeatureConfig>
-    {
-    }
-    internal class SegmentCache : MemoryCache<string, Segment>
-    {
-    }
-
 
 
 

@@ -18,6 +18,7 @@ namespace io.harness.cfsdk.client.connector
         private HttpClient httpClient;
         private StreamReader streamReader;
         private IUpdateCallback callback;
+
         public EventSource(HttpClient httpClient, IUpdateCallback callback)
         {
             this.httpClient = httpClient;

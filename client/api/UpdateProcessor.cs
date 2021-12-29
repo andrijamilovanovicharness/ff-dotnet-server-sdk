@@ -3,6 +3,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using io.harness.cfsdk.client.connector;
 using io.harness.cfsdk.HarnessOpenAPIService;
+using Newtonsoft.Json;
+using Serilog;
 
 namespace io.harness.cfsdk.client.api
 {
@@ -74,9 +76,9 @@ namespace io.harness.cfsdk.client.api
         }
         private void ProcessMessage(Message message)
         {
-            try
+            if (message.Domain.Equals("flag"))
             {
-                if (message.Domain.Equals("flag"))
+                try
                 {
                     if (message.Event.Equals("delete"))
                     {
@@ -88,7 +90,14 @@ namespace io.harness.cfsdk.client.api
                         this.repository.SetFlag(message.Identifier, feature);
                     }
                 }
-                else if (message.Domain.Equals("target-segment"))
+                catch(Exception ex)
+                {
+                    Log.Error($"Error processing flag: {message.Identifier} event: {message.Event}.", ex);
+                }
+            }
+            else if (message.Domain.Equals("target-segment"))
+            {
+                try
                 {
                     if (message.Event.Equals("delete"))
                     {
@@ -100,10 +109,10 @@ namespace io.harness.cfsdk.client.api
                         this.repository.SetSegment(message.Identifier, segment);
                     }
                 }
-            }
-            catch(Exception ex)
-            {
-
+                catch(Exception ex)
+                {
+                    Log.Error($"Error processing segment: {message.Identifier} event: {message.Event}.", ex);
+                }
             }
         }
     }

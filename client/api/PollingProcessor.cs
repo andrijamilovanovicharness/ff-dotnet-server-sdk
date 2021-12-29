@@ -25,6 +25,7 @@ namespace io.harness.cfsdk.client.api
         private IPollCallback callback;
         private Timer pollTimer;
         private Config config;
+        private bool isInitialized = false;
         private System.Threading.AutoResetEvent readyEvent;
 
         public PollingProcessor(IConnector connector, IRepository repository, Config config, IPollCallback callback)
@@ -95,9 +96,12 @@ namespace io.harness.cfsdk.client.api
 
             Task.WaitAll(tasks.ToArray());
 
-            this.callback.OnPollerReady();
-
-            this.readyEvent.Set();
+            if (!isInitialized)
+            {
+                this.isInitialized = true;
+                this.callback.OnPollerReady();
+                this.readyEvent.Set();
+            }
         }
     }
 }

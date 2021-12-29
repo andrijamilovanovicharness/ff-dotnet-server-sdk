@@ -12,8 +12,9 @@ namespace io.harness.cfsdk.client.connector
     {
         string Authenticate();
         IEnumerable<FeatureConfig> GetFlags();
-        IEnumerable<Segment> GetSegments();
         FeatureConfig GetFlag(string identifier);
+
+        IEnumerable<Segment> GetSegments();
         Segment GetSegment(string identifier);
 
         IService Stream(IUpdateCallback updater);

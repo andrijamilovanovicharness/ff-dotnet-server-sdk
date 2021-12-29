@@ -1,0 +1,3 @@
+[submodule "ff-test-cases"]
+	path = ff-test-cases
+	url = https://github.com/drone/ff-test-cases.git

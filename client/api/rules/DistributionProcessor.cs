@@ -14,33 +14,25 @@ namespace io.harness.cfsdk.client.api.rules
 
         public string loadKeyName(dto.Target target)
         {
-            string variation = null;
-            if (distribution == null || distribution.Variations == null)
-                return variation;
 
+            if (distribution == null || distribution.Variations == null)
+            {
+                return null;
+            }
+            string variation = "";
             foreach (WeightedVariation weightedVariation in distribution.Variations)
             {
                 variation = weightedVariation.Variation;
-
-                if (weightedVariation.Weight != null)
+                if (isEnabled(target, weightedVariation.Weight))
                 {
-                    if (isEnabled(target, weightedVariation.Weight))
-                    {
-                        return variation;
-                    }
-                    else
-                    {
-                        throw new ArgumentNullException(" weightedVariation.Weight is  null");
-                    }
+                    return variation;
                 }
             }
-            // distance between last variation and total percentage
-            return isEnabled(target, Strategy.ONE_HUNDRED) ? variation : "";
+            return variation;
         }
 
         private bool isEnabled(dto.Target target, int percentage)
         {
-            string bucketBy = distribution.BucketBy;
             object value = null;
             try
             {
@@ -55,7 +47,6 @@ namespace io.harness.cfsdk.client.api.rules
             }
 
             string identifier = "";
-            //java original String identifier = Objects.requireNonNull(value).toString();
             if (value != null)
             {
                 identifier = value.ToString();
@@ -66,7 +57,7 @@ namespace io.harness.cfsdk.client.api.rules
                 return false;
             }
 
-            Strategy strategy = new Strategy(identifier, bucketBy);
+            Strategy strategy = new Strategy(identifier, distribution.BucketBy);
             int bucketId = strategy.loadNormalizedNumber();
 
             return percentage > 0 && bucketId <= percentage;

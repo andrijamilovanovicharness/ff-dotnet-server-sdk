@@ -77,6 +77,7 @@ namespace io.harness.cfsdk.client.connector
             try
             {
                 Client client = new Client(this.apiHttpClient);
+                //client.ReadResponseAsString = true;
                 client.BaseUrl = this.config.ConfigUrl;
                 FeatureConfig feature = client.ClientEnvFeatureConfigsGetAsync(identifier, this.environment, this.cluster).GetAwaiter().GetResult();
                 return feature;
@@ -112,6 +113,7 @@ namespace io.harness.cfsdk.client.connector
                 DateTime startTime = DateTime.Now;
                 HarnessOpenMetricsAPIService.Client client = new HarnessOpenMetricsAPIService.Client(this.metricHttpClient);
 
+                //TODO: HTTP exception
                 client.MetricsAsync(environment, cluster, metrics).GetAwaiter().GetResult();
 
                 DateTime endTime = DateTime.Now;

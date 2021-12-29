@@ -1,11 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using io.harness.cfsdk.client.api.rules;
 using io.harness.cfsdk.client.dto;
 using io.harness.cfsdk.HarnessOpenAPIService;
 using Newtonsoft.Json.Linq;
+
+[assembly: InternalsVisibleToAttribute("ff-server-sdk-test")]
 
 namespace io.harness.cfsdk.client.api
 {
@@ -36,7 +39,7 @@ namespace io.harness.cfsdk.client.api
                 return null;
 
             ICollection<Prerequisite> prerequisites = featureConfig.Prerequisites;
-            if (prerequisites != null)
+            if (prerequisites != null && prerequisites.Count > 0)
             {
                 bool prereq = checkPreRequisite(featureConfig, target);
                 if( !prereq)
@@ -46,7 +49,7 @@ namespace io.harness.cfsdk.client.api
             }
 
             Variation var = Evaluate(featureConfig, target);
-            if(var != null)
+            if(var != null && callback != null)
             {
                 this.callback.evaluationProcessed(featureConfig, target, var);
             }
@@ -147,7 +150,7 @@ namespace io.harness.cfsdk.client.api
 
         private string evaluateVariationMap(dto.Target target, ICollection<VariationMap> variationMaps)
         {
-            if (variationMaps == null)
+            if (variationMaps == null || target == null)
             {
                 return null;
             }
@@ -195,6 +198,11 @@ namespace io.harness.cfsdk.client.api
         private string evaluateRules(FeatureConfig featureConfig, dto.Target target)
         {
             ICollection<ServingRule> originalServingRules = featureConfig.Rules;
+            if (originalServingRules == null || target == null)
+            {
+                return null;
+            }
+
             List<ServingRule> servingRules = ((List<ServingRule>)originalServingRules).OrderBy(sr => sr.Priority).ToList();
 
 

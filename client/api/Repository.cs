@@ -1,7 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using io.harness.cfsdk.client.cache;
 using io.harness.cfsdk.HarnessOpenAPIService;
+
+[assembly: InternalsVisibleToAttribute("ff-server-sdk-test")]
 
 namespace io.harness.cfsdk.client.api
 {
@@ -25,6 +28,7 @@ namespace io.harness.cfsdk.client.api
         void DeleteFlag(string identifier);
         void DeleteSegment(string identifier);
     }
+
     internal class StorageRepository : IRepository
     {
         private ICache cache;
@@ -81,7 +85,10 @@ namespace io.harness.cfsdk.client.api
 
             }
             this.cache.Delete(key);
-            this.callback.OnFlagDeleted(identifier);
+            if (this.callback != null)
+            {
+                this.callback.OnFlagDeleted(identifier);
+            }
         }
 
         public void DeleteSegment(string identifier)
@@ -93,7 +100,10 @@ namespace io.harness.cfsdk.client.api
 
             }
             this.cache.Delete(key);
-            this.callback.OnSegmentDeleted(identifier);
+            if (this.callback != null)
+            {
+                this.callback.OnSegmentDeleted(identifier);
+            }
         }
         private Object GetCache(string key, bool updateCache)
         {
@@ -132,7 +142,10 @@ namespace io.harness.cfsdk.client.api
 
             Update(FlagKey(identifier), featureConfig);
 
-            this.callback.OnFlagStored(identifier);
+            if (this.callback != null)
+            {
+                this.callback.OnFlagStored(identifier);
+            }
         }
         void IRepository.SetSegment(string identifier, Segment segment)
         {
@@ -144,7 +157,10 @@ namespace io.harness.cfsdk.client.api
 
             Update(SegmentKey(identifier), segment);
 
-            this.callback.OnSegmentStored(identifier);
+            if (this.callback != null)
+            {
+                this.callback.OnSegmentStored(identifier);
+            }
         }
 
         private void Update(string key, Object value)

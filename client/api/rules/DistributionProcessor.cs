@@ -19,6 +19,7 @@ namespace io.harness.cfsdk.client.api.rules
             {
                 return null;
             }
+
             string variation = "";
             foreach (WeightedVariation weightedVariation in distribution.Variations)
             {
@@ -33,18 +34,7 @@ namespace io.harness.cfsdk.client.api.rules
 
         private bool isEnabled(dto.Target target, int percentage)
         {
-            object value = null;
-            try
-            {
-                value = Evaluator.getAttrValue(target, distribution.BucketBy);
-            }
-            catch (CfClientException e)
-            {
-                if (e.StackTrace != null)
-                {
-                    Console.Error.WriteLine(e.StackTrace);
-                }
-            }
+            object value = Evaluator.getAttrValue(target, distribution.BucketBy);
 
             string identifier = "";
             if (value != null)

@@ -7,6 +7,7 @@ using io.harness.cfsdk.client.api.rules;
 using io.harness.cfsdk.client.dto;
 using io.harness.cfsdk.HarnessOpenAPIService;
 using Newtonsoft.Json.Linq;
+using Serilog;
 
 [assembly: InternalsVisibleToAttribute("ff-server-sdk-test")]
 
@@ -104,7 +105,7 @@ namespace io.harness.cfsdk.client.api
                     }
 
                     List<string> validPreReqVariations = pqs.Variations.ToList();
-                    if (!validPreReqVariations.Contains(preReqEvaluatedVariation.ToString()))
+                    if (!validPreReqVariations.Contains(preReqEvaluatedVariation.Value))
                     {
                         return false;
                     }
@@ -124,15 +125,15 @@ namespace io.harness.cfsdk.client.api
                 variation = null;
                 if (featureConfig.VariationToTargetMap != null)
                 {
-                    variation = evaluateVariationMap(target, featureConfig.VariationToTargetMap);
+                    variation = EvaluateVariationMap(target, featureConfig.VariationToTargetMap);
                 }
                 if (variation == null)
                 {
-                    variation = evaluateRules(featureConfig, target);
+                    variation = EvaluateRules(featureConfig, target);
                 }
                 if (variation == null)
                 {
-                    variation = evaluateDistribution(featureConfig, target);
+                    variation = EvaluateDistribution(featureConfig, target);
                 }
                 if (variation == null)
                 {
@@ -148,7 +149,7 @@ namespace io.harness.cfsdk.client.api
 
         }
 
-        private string evaluateVariationMap(dto.Target target, ICollection<VariationMap> variationMaps)
+        private string EvaluateVariationMap(dto.Target target, ICollection<VariationMap> variationMaps)
         {
             if (variationMaps == null || target == null)
             {
@@ -156,183 +157,127 @@ namespace io.harness.cfsdk.client.api
             }
             foreach (VariationMap variationMap in variationMaps)
             {
-                ICollection<TargetMap> targets = variationMap.Targets;
-
-                if (targets != null)
+                if (variationMap.Targets != null && variationMap.Targets.ToList().Any(t => t != null && t.Identifier.Equals(target.Identifier)) )
                 {
-                    foreach (TargetMap targetMap in targets)
-                    {
-                        if (targetMap.Identifier.Contains(target.Identifier))
-                        {
-                            return variationMap.Variation;
-                        }
-                    }
+                    return variationMap.Variation;
                 }
-
-                ICollection<string> segmentIdentifiers = variationMap.TargetSegments;
-                if (segmentIdentifiers != null)
+                if( variationMap.TargetSegments != null && IsTargetIncludedOrExcludedInSegment(variationMap.TargetSegments.ToList(), target))
                 {
-                    foreach (string segmentIdentifier in segmentIdentifiers)
-                    {
-                        Segment segment = this.repository.GetSegment(segmentIdentifier);
-                        if (segment != null)
-                        {
-                            ICollection<HarnessOpenAPIService.Target> includedTargets = segment.Included;
-                            if (includedTargets != null)
-                            {
-                                foreach (HarnessOpenAPIService.Target includedTarget in includedTargets)
-                                {
-                                    if (includedTarget.Identifier.Contains(target.Identifier))
-                                    {
-                                        return variationMap.Variation;
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    return variationMap.Variation;
                 }
             }
             return null;
         }
 
-        private string evaluateRules(FeatureConfig featureConfig, dto.Target target)
+        private string EvaluateRules(FeatureConfig featureConfig, dto.Target target)
         {
-            ICollection<ServingRule> originalServingRules = featureConfig.Rules;
-            if (originalServingRules == null || target == null)
+            if (featureConfig.Rules == null || target == null)
             {
                 return null;
             }
 
-            List<ServingRule> servingRules = ((List<ServingRule>)originalServingRules).OrderBy(sr => sr.Priority).ToList();
-
-
-            string servedVariation = null;
-            foreach (ServingRule servingRule in servingRules)
+            foreach (ServingRule servingRule in featureConfig.Rules.ToList().OrderBy(sr => sr.Priority))
             {
-                servedVariation = evaluateServingRule(servingRule, target);
-                if (servedVariation != null)
+                if (servingRule.Clauses != null && servingRule.Clauses.ToList().Any(c => EvaluateClause(c, target) == false))
                 {
-                    return servedVariation;
+                    continue;
+                }
+
+                if( servingRule.Serve != null)
+                {
+                    if(servingRule.Serve.Distribution != null)
+                    {
+                        DistributionProcessor distributionProcessor = new DistributionProcessor(servingRule.Serve);
+                        return distributionProcessor.loadKeyName(target);
+                    }
+                    if( servingRule.Serve.Variation != null)
+                    {
+                        return servingRule.Serve.Variation;
+                    }
                 }
             }
             return null;
         }
 
-        private string evaluateServingRule(ServingRule servingRule, dto.Target target)
-        {
-            foreach (Clause clause in servingRule.Clauses.Where(cl => cl != null))
-            {
-                if (!process(clause, target))
-                { // check if the target match the clause
-                    return null;
-                }
-            }
+       
 
-            Serve serve = servingRule.Serve;
-            string servedVariation;
-            if (serve.Variation != null)
-            {
-                servedVariation = serve.Variation;
-            }
-            else
-            {
-                DistributionProcessor distributionProcessor = new DistributionProcessor(servingRule.Serve);
-                servedVariation = distributionProcessor.loadKeyName(target);
-            }
-            return servedVariation;
-        }
-
-        private string evaluateDistribution(FeatureConfig featureConfig, dto.Target target)
+        private string EvaluateDistribution(FeatureConfig featureConfig, dto.Target target)
         {
             DistributionProcessor distributionProcessor = new DistributionProcessor(featureConfig.DefaultServe);
             return distributionProcessor.loadKeyName(target);
         }
-
-        private bool process(Clause clause, dto.Target target)
+        private bool IsTargetIncludedOrExcludedInSegment(List<string> segmentList, dto.Target target)
         {
-            bool result = compare(clause.Values.ToList(), target, clause);
-            return result;
+            foreach (string segmentIdentifier in segmentList)
+            {
+                Segment segment = this.repository.GetSegment(segmentIdentifier);
+                if (segment != null)
+                {
+                    // check exclude list
+                    if (segment.Excluded != null && segment.Excluded.Any(t => t.Identifier.Equals(target.Identifier)))
+                    {
+                        Log.Debug($"Target {target.Name} excluded from segment {segment.Name} via exclude list");
+                        return false;
+                    }
+
+                    // check include list
+                    if (segment.Included != null && segment.Included.Any(t => t.Identifier.Equals(target.Identifier)))
+                    {
+                        Log.Debug($"Target {target.Name} included in segment {segment.Name} via include list");
+                        return true;
+                    }
+
+                    // if we have rules, all should pass
+                    if (segment.Rules != null)
+                    {
+                        Clause firstFailure = segment.Rules.First(r => EvaluateClause(r, target) == false);
+                        return firstFailure == null;
+                    }
+                }
+            }
+            return false;
         }
-
-        private bool compare(List<string> value, dto.Target target, Clause clause)
+        private bool EvaluateClause(Clause clause, dto.Target target)
         {
-            string Operator = clause.Op;
-            string Object = null;
-            object attrValue = null;
-            try
+            // operator is mandatory
+            if (clause == null || String.IsNullOrEmpty(clause.Op))
             {
-                attrValue = getAttrValue(target, clause.Attribute);
-            }
-            catch (CfClientException e)
-            {
-                attrValue = "";
-            }
-            Object = attrValue.ToString();
-
-            if (clause.Values == null)
-            {
-                throw new CfClientException("The clause is missing values");
+                return false;
             }
 
-            string v = value[0];
-            switch (Operator)
+            object attrValue = getAttrValue(target, clause.Attribute);
+            if(attrValue == null)
+            {
+                return false;
+            }
+
+            if(clause.Values == null || clause.Values.Count == 0)
+            {
+                return false;
+            }
+
+            string Object = attrValue.ToString();
+            string value = clause.Values.First();
+
+            switch (clause.Op)
             {
                 case "starts_with":
-                    return Object.StartsWith(v);
+                    return Object.StartsWith(value);
                 case "ends_with":
-                    return Object.EndsWith(v);
+                    return Object.EndsWith(value);
                 case "match":
-                    Regex rgx = new Regex(v);
+                    Regex rgx = new Regex(value);
                     return rgx.IsMatch(Object);
                 case "contains":
-                    return Object.Contains(v);
+                    return Object.Contains(value);
                 case "equal":
-                    return Object.ToLower().Equals(v.ToLower());
+                    return Object.ToLower().Equals(value.ToLower());
                 case "equal_sensitive":
-                    return Object.Equals(v);
+                    return Object.Equals(value);
                 case "in":
                     return value.Contains(Object);
                 case "segmentMatch":
-                    foreach (string segmentIdentifier in value)
-                    {
-                        Segment segment = this.repository.GetSegment(segmentIdentifier);
-                        if (segment != null)
-                        {
-                            List<HarnessOpenAPIService.Target> excludedTargets = segment.Excluded.ToList();
-                            if (excludedTargets != null)
-                            {
-                                foreach (HarnessOpenAPIService.Target excludeTarget in excludedTargets)
-                                {
-                                    if (excludeTarget.Identifier.Contains(target.Identifier))
-                                    {
-                                        return false;
-                                    }
-                                }
-                            }
-                            List<HarnessOpenAPIService.Target> includedTargets = segment.Included.ToList();
-                            if (includedTargets != null)
-                            {
-                                foreach (HarnessOpenAPIService.Target includedTarget in includedTargets)
-                                {
-                                    if (includedTarget.Identifier.Contains(target.Identifier))
-                                    {
-                                        return true;
-                                    }
-                                }
-                            }
-                            if (segment.Rules != null)
-                            {
-                                foreach (Clause rule in segment.Rules)
-                                {
-                                    if (compare(rule.Values.ToList(), target, rule) == true)
-                                    {
-                                        return true;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    return false;
+                    return IsTargetIncludedOrExcludedInSegment(clause.Values.ToList(), target);
                 default:
                     return false;
             }
@@ -351,7 +296,7 @@ namespace io.harness.cfsdk.client.api
                     {
                         return target.Attributes[attribute];
                     }
-                    throw new CfClientException("The attribute" + attribute + " does not exist");
+                    return null;
             }
 
         }

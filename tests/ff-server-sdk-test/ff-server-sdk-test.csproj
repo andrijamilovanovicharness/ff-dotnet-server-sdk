@@ -14,9 +14,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\ff-netF48-server-sdk.csproj" />
-  </ItemGroup>
-  <ItemGroup>
     <None Remove="Microsoft.NET.Test.Sdk" />
   </ItemGroup>
   <ItemGroup>
@@ -44,5 +41,8 @@
     <None Update="ff-test-cases\tests\off_off_no_rules.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\ff-netF48-server-sdk.csproj" />
   </ItemGroup>
 </Project>

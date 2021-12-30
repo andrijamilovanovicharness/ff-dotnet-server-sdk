@@ -83,10 +83,6 @@ namespace ff_server_sdk_test
                         }
                     }
                     string feature = testResult.TestModel.flag.Feature;
-                    if( feature == "AlfaTestprereq.json")
-                    {
-                        int k = 1;
-                    }
                     switch (testResult.TestModel.flag.Kind)
                     {
                         case FeatureConfigKind.Boolean:

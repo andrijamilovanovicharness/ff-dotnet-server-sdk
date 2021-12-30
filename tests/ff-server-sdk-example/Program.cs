@@ -6,10 +6,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-
-
-
-namespace TestA
+namespace io.harness.example
 {
     class Observer : IObserver<Event>
     {

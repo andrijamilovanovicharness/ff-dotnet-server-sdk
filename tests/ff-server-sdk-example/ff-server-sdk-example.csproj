@@ -6,6 +6,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\ff-netF48-server-sdk.csproj" />
+    <ProjectReference Include="..\..\ff-netF48-server-sdk.csproj" />
   </ItemGroup>
 </Project>

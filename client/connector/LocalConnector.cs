@@ -23,6 +23,10 @@ namespace io.harness.cfsdk.client.connector
             // there is no authentication so just return any string
             return "success";
         }
+        public void Close()
+        {
+
+        }
 
         public FeatureConfig GetFlag(string identifier)
         {

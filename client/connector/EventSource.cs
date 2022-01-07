@@ -13,21 +13,20 @@ namespace io.harness.cfsdk.client.connector
     public class EventSource : IService
     {
         private string url;
-        private string token;
-        private string apiKey;
         private HttpClient httpClient;
         private StreamReader streamReader;
         private IUpdateCallback callback;
 
-        public EventSource(HttpClient httpClient, IUpdateCallback callback)
+        public EventSource(HttpClient httpClient, string url, IUpdateCallback callback)
         {
             this.httpClient = httpClient;
+            this.url = url;
             this.callback = callback;
         }
 
         public void Close()
         {
-            throw new NotImplementedException();
+            Stop();
         }
 
         public void Start()

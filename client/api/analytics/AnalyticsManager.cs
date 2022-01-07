@@ -43,12 +43,14 @@ namespace io.harness.cfsdk.client.api.analytics
             if (config.analyticsEnabled)
             {
                 this.timer = new Timer((long)config.Frequency * 1000);
-                this.timer.Elapsed += new ElapsedEventHandler(run_onTimer);
+                this.timer.Elapsed += Timer_Elapsed;
                 this.timer.AutoReset = true;
                 this.timer.Enabled = true;
                 this.timer.Start();
             }
         }
+
+
         public void Stop()
         {
             if(config.analyticsEnabled && this.timer != null)
@@ -97,7 +99,7 @@ namespace io.harness.cfsdk.client.api.analytics
             // Get the ring buffer from the Disruptor to be used for publishing.
             return disruptor.RingBuffer;
         }
-        internal async void run_onTimer(object source, System.Timers.ElapsedEventArgs e)
+        internal void Timer_Elapsed(object sender, ElapsedEventArgs e)
         {
             long sequence = -1;
             if (!ringBuffer.TryNext(out sequence)) // Grab the next sequence if we can

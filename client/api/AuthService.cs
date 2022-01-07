@@ -30,6 +30,7 @@ namespace io.harness.cfsdk.client.api
         }
         public void StartAuthentication()
         {
+            // initiate authentication
             authTimer = new Timer(new TimerCallback(OnTimedEvent), null, 0, this.config.PollIntervalInMiliSeconds);
         }
         public void Stop()
@@ -44,11 +45,12 @@ namespace io.harness.cfsdk.client.api
                 connector.Authenticate();
                 callback.OnAuthenticationSuccess();
                 Stop();
-
+                Log.Information("Stopping authentication service");
             }
-            catch (CfClientException)
+            catch
             {
-                // do nothing, timer will retry
+                // Exception thrown on Authentication. Timer will retry authentication
+                Log.Error($"Exception while authenticating, retry in {this.config.pollIntervalInSeconds}");
             }
         }
     }

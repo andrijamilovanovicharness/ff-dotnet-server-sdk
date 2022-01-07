@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using System.Threading;
 using io.harness.cfsdk.client.connector;
 using io.harness.cfsdk.HarnessOpenAPIService;
+using Serilog;
 
 namespace io.harness.cfsdk.client.api
 {
@@ -60,16 +61,19 @@ namespace io.harness.cfsdk.client.api
 
             try
             {
+                Log.Debug("Fetching flags started");
                 IEnumerable<FeatureConfig> flags = this.connector.GetFlags();
+                Log.Debug("Fetching flags finished");
                 foreach (FeatureConfig item in flags)
                 {
                     repository.SetFlag(item.Feature, item);
                 }
 
             }
-            catch (CfClientException)
+            catch (CfClientException ex)
             {
-                // TODO: handle error
+                Log.Error($"Exception was raised when fetching flags data with the message {ex.Message}");
+                throw ex;
             }
         }
         private void ProcessSegments()
@@ -77,30 +81,41 @@ namespace io.harness.cfsdk.client.api
 
             try
             {
+                Log.Debug("Fetching segments started");
                 IEnumerable<Segment> segments = this.connector.GetSegments();
+                Log.Debug("Fetching segments finished");
                 foreach (Segment item in segments)
                 {
                     repository.SetSegment(item.Identifier, item);
                 }
             }
-            catch (CfClientException)
+            catch (CfClientException ex)
             {
-                // TODO: Handle error
+                Log.Error($"Exception was raised when fetching segments data with the message {ex.Message}");
+                throw ex;
             }
         }
         private void OnTimedEventAsync(object source)
         {
-            var tasks = new List<Task>();
-            tasks.Add(Task.Run(() => ProcessFlags()));
-            tasks.Add(Task.Run(() => ProcessSegments()));
-
-            Task.WaitAll(tasks.ToArray());
-
-            if (!isInitialized)
+            try
             {
-                this.isInitialized = true;
-                this.callback.OnPollerReady();
-                this.readyEvent.Set();
+                Log.Debug("Running polling iteration");
+                var tasks = new List<Task>();
+                tasks.Add(Task.Run(() => ProcessFlags()));
+                tasks.Add(Task.Run(() => ProcessSegments()));
+
+                Task.WaitAll(tasks.ToArray());
+
+                if (!isInitialized)
+                {
+                    this.isInitialized = true;
+                    this.callback.OnPollerReady();
+                    this.readyEvent.Set();
+                }
+            }
+            catch
+            {
+                Log.Information($"Polling will retry in {this.config.pollIntervalInSeconds}");
             }
         }
     }

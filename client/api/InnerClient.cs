@@ -58,11 +58,15 @@ namespace io.harness.cfsdk.client.api
         }
         public async Task StartAsync()
         {
-            // Start Authentication flow
+            Log.Information("Initialize authentication");
+            // Start Authentication flow, and  
             this.authService.StartAuthentication();
 
-            var initWork = new[] { this.polling.ReadyAsync() };
+            var initWork = new[] {
+                this.polling.ReadyAsync()
+            };
 
+            // We finished with initialization when Polling processor returns.
             await Task.WhenAll(initWork);
 
             Notify(new Event { type = NotificationType.READY });

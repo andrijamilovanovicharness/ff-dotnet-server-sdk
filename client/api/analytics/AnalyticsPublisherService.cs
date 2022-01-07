@@ -14,13 +14,11 @@ namespace io.harness.cfsdk.client.api.analytics
     internal class AnalyticsPublisherService
     {
         private static string FEATURE_NAME_ATTRIBUTE = "featureName";
-        private static string FEATURE_VALUE_ATTRIBUTE = "featureValue";
         private static string VARIATION_VALUE_ATTRIBUTE = "featureValue";
         private static string VARIATION_IDENTIFIER_ATTRIBUTE = "variationIdentifier";
         private static string TARGET_ATTRIBUTE = "target";
         private static HashSet<dto.Target> globalTargetSet = new HashSet<dto.Target>();
         private static HashSet<dto.Target> stagingTargetSet = new HashSet<dto.Target>();
-        private static string JAR_VERSION = "JAR_VERSION";
         private static string SDK_TYPE = "SDK_TYPE";
         private static string ANONYMOUS_TARGET = "anonymous";
         private static string SERVER = "server";
@@ -31,8 +29,6 @@ namespace io.harness.cfsdk.client.api.analytics
         private Version sdkVersion = typeof(AnalyticsPublisherService).Assembly.GetName().Version;
 
         private AnalyticsCache analyticsCache;
-        private string environmentID;
-        private string cluster;
         private IConnector connector;
 
 

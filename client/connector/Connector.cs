@@ -20,5 +20,7 @@ namespace io.harness.cfsdk.client.connector
         IService Stream(IUpdateCallback updater);
 
         void PostMetrics(Metrics metrics);
+
+        void Close();
     }
 }

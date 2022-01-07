@@ -25,8 +25,7 @@ namespace io.harness.cfsdk.client.api
         private IConnector connector;
         private IRepository repository;
         private IUpdateCallback callback;
-        private int pollIntervalInSec;
-        private Timer pollTimer;
+
         private IService service;
         private Config config;
 
@@ -36,7 +35,6 @@ namespace io.harness.cfsdk.client.api
             this.repository = repository;
             this.connector = connector;
             this.config = config;
-            this.pollIntervalInSec = config.pollIntervalInSeconds;
         }
 
         public void Start()
@@ -70,7 +68,7 @@ namespace io.harness.cfsdk.client.api
             Stop();
             Task.Run(async () =>
             {
-                await Task.Delay(TimeSpan.FromSeconds(10));
+                await Task.Delay(TimeSpan.FromSeconds(this.config.pollIntervalInSeconds));
                 Start();
             });
         }

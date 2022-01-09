@@ -12,9 +12,13 @@ namespace io.harness.cfsdk.client.api
     }
     interface IAuthService
     {
-        void StartAuthentication();
+        void Start();
         void Stop();
     }
+
+    /// <summary>
+    /// The class is in charge of initiating authentication requests and retry until successful authentication.
+    /// </summary>
     internal class AuthService : IAuthService
     {
         private IConnector connector;
@@ -28,7 +32,7 @@ namespace io.harness.cfsdk.client.api
             this.config = config;
             this.callback = callback;
         }
-        public void StartAuthentication()
+        public void Start()
         {
             // initiate authentication
             authTimer = new Timer(new TimerCallback(OnTimedEvent), null, 0, this.config.PollIntervalInMiliSeconds);
@@ -49,7 +53,7 @@ namespace io.harness.cfsdk.client.api
             }
             catch
             {
-                // Exception thrown on Authentication. Timer will retry authentication
+                // Exception thrown on Authentication. Timer will retry authentication.
                 Log.Error($"Exception while authenticating, retry in {this.config.pollIntervalInSeconds}");
             }
         }

@@ -10,7 +10,7 @@ namespace io.harness.cfsdk.client.api
 {
     public interface IUpdateCallback
     {
-        void Update(Message message);
+        void Update(Message message, bool manual);
         void OnStreamConnected();
         void OnStreamDisconnected();
     }
@@ -18,8 +18,12 @@ namespace io.harness.cfsdk.client.api
     {
         void Start();
         void Stop();
-        void Update(Message message);
+        void Update(Message message, bool manual);
     }
+    /// <summary>
+    /// Class responsible to initiate permanent connection with server
+    /// and update state of 
+    /// </summary>
     internal class UpdateProcessor : IUpdateCallback, IUpdateProcessor
     {
         private IConnector connector;
@@ -50,12 +54,17 @@ namespace io.harness.cfsdk.client.api
             if (this.service != null)
             {
                 this.service.Stop();
+                // TODO: wait for ProcessMessage to finish.
             }
         }
 
-        public void Update(Message message)
+        public void Update(Message message, bool manual)
         {
-            //we got a message from server
+            if( manual && this.config.StreamEnabled)
+            {
+                Log.Information("You run the update method manually with the stream enabled. Please turn off the stream in this case.");
+            }
+            //we got a message from server. Dispatch in separate thread.
             Task.Run(() => ProcessMessage(message));
         }
         public void OnStreamConnected()

@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using io.harness.cfsdk.client.api;
 using Newtonsoft.Json.Linq;
+using Serilog;
 
 namespace io.harness.cfsdk.client.connector
 {
@@ -39,12 +40,15 @@ namespace io.harness.cfsdk.client.connector
             this.streamReader.Close();
             this.streamReader.Dispose();
             this.streamReader = null;
+
+            Log.Information("Stopping EventSource service.");
         }
 
         private async Task StartStreaming()
         {
             try
             {
+                Log.Information("Starting EventSource service.");
                 using (this.streamReader = new StreamReader(await this.httpClient.GetStreamAsync(url)))
                 {
                     this.callback.OnStreamConnected();
@@ -54,6 +58,7 @@ namespace io.harness.cfsdk.client.connector
                         string message = await streamReader.ReadLineAsync();
                         if (!message.Contains("domain")) continue;
 
+                        Log.Information($"EventSource message received {message}");
 
                         // parse message
                         JObject jsommessage = JObject.Parse("{" + message + "}");
@@ -64,7 +69,8 @@ namespace io.harness.cfsdk.client.connector
                         msg.Identifier = (string)jsommessage["data"]["identifier"];
                         msg.Version = long.Parse((string)jsommessage["data"]["version"]);
 
-                        this.callback.Update(msg);
+
+                        this.callback.Update(msg, false);
                     }
                 }
             }

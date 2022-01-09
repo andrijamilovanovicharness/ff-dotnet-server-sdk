@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using io.harness.cfsdk.client.cache;
 using io.harness.cfsdk.HarnessOpenAPIService;
+using Serilog;
 
 [assembly: InternalsVisibleToAttribute("ff-server-sdk-test")]
 
@@ -27,6 +28,8 @@ namespace io.harness.cfsdk.client.api
 
         void DeleteFlag(string identifier);
         void DeleteSegment(string identifier);
+
+        void Close();
     }
 
     internal class StorageRepository : IRepository
@@ -58,16 +61,16 @@ namespace io.harness.cfsdk.client.api
             ICollection<string> keys = this.store != null ? this.store.Keys() : this.cache.Keys();
             foreach( string key in keys)
             {
-                FeatureConfig feature = GetFlag(key);
-                if(feature != null)
+                FeatureConfig flag = GetFlag(key);
+                if(flag != null && flag.Rules != null)
                 {
-                    foreach( ServingRule rule in feature.Rules)
+                    foreach( ServingRule rule in flag.Rules)
                     {
                         foreach (Clause clause in rule.Clauses)
                         {
                             if(clause.Op.Equals("segmentMatch") && clause.Values.Contains(segment))
                             {
-                                features.Add(feature.Feature);
+                                features.Add(flag.Feature);
                             }
                         }
                     }
@@ -81,10 +84,11 @@ namespace io.harness.cfsdk.client.api
             string key = FlagKey(identifier);
             if (store != null)
             {
+                Log.Debug($"Flag {identifier} successfully deleted from store");
                 store.Delete(key);
-
             }
             this.cache.Delete(key);
+            Log.Debug($"Flag {identifier} successfully deleted from cache");
             if (this.callback != null)
             {
                 this.callback.OnFlagDeleted(identifier);
@@ -96,10 +100,11 @@ namespace io.harness.cfsdk.client.api
             string key = SegmentKey(identifier);
             if (store != null)
             {
+                Log.Debug($"Segment {identifier} successfully deleted from store");
                 store.Delete(key);
-
             }
             this.cache.Delete(key);
+            Log.Debug($"Segment {identifier} successfully deleted from cache");
             if (this.callback != null)
             {
                 this.callback.OnSegmentDeleted(identifier);
@@ -135,12 +140,13 @@ namespace io.harness.cfsdk.client.api
         void IRepository.SetFlag(string identifier, FeatureConfig featureConfig)
         {
             FeatureConfig current = GetFlag(identifier, false);
-            if( current != null && current.Version > featureConfig.Version )
+            if( current != null && current.Version >= featureConfig.Version )
             {
+                Log.Debug($"Flag {identifier} already exists");
                 return;
             }
 
-            Update(FlagKey(identifier), featureConfig);
+            Update(identifier, FlagKey(identifier), featureConfig);
 
             if (this.callback != null)
             {
@@ -150,12 +156,13 @@ namespace io.harness.cfsdk.client.api
         void IRepository.SetSegment(string identifier, Segment segment)
         {
             Segment current = GetSegment(identifier, false);
-            if (current != null && current.Version > segment.Version)
+            if (current != null && current.Version >= segment.Version)
             {
+                Log.Debug($"Segment {identifier} already exists");
                 return;
             }
 
-            Update(SegmentKey(identifier), segment);
+            Update(identifier, SegmentKey(identifier), segment);
 
             if (this.callback != null)
             {
@@ -163,16 +170,26 @@ namespace io.harness.cfsdk.client.api
             }
         }
 
-        private void Update(string key, Object value)
+        private void Update(string identifier, string key, Object value)
         {
             if (this.store == null)
             {
+                Log.Debug($"Item {identifier} successfully cached");
                 cache.Set(key, value);
             }
             else
             {
+                Log.Debug($"Item {identifier} successfully stored and cache invalidated");
                 store.Set(key, value);
                 cache.Delete(key);
+            }
+        }
+
+        public void Close()
+        {
+            if(this.store != null)
+            {
+                this.store.Close();
             }
         }
     }

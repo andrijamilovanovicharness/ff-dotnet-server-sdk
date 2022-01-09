@@ -10,7 +10,7 @@ namespace io.harness.cfsdk.client.api
         {
         }
 
-        public void close()
+        public void Close()
         {
             throw new NotImplementedException();
         }

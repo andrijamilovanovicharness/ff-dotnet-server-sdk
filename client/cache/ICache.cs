@@ -25,6 +25,6 @@ namespace io.harness.cfsdk.client.cache
     }
     public interface IStore : ICache
     {
-        void close();
+        void Close();
     }
 }

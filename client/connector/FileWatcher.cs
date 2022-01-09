@@ -22,17 +22,17 @@ namespace io.harness.cfsdk.client.connector
 
         private void Watcher_Deleted(object sender, FileSystemEventArgs e)
         {
-            this.callback.Update(new Message() { Domain = this.domain, Event = "delete", Identifier = Path.GetFileNameWithoutExtension(e.Name), Version = 0 });
+            this.callback.Update(new Message() { Domain = this.domain, Event = "delete", Identifier = Path.GetFileNameWithoutExtension(e.Name), Version = 0 }, false);
         }
 
         private void Watcher_Created(object sender, FileSystemEventArgs e)
         {
-            this.callback.Update(new Message() { Domain = this.domain, Event = "create", Identifier = Path.GetFileNameWithoutExtension(e.Name), Version = 0 });
+            this.callback.Update(new Message() { Domain = this.domain, Event = "create", Identifier = Path.GetFileNameWithoutExtension(e.Name), Version = 0 }, false);
         }
 
         private void Watcher_Changed(object sender, FileSystemEventArgs e)
         {
-            this.callback.Update(new Message() { Domain = this.domain, Event = "patch", Identifier = Path.GetFileNameWithoutExtension(e.Name), Version = 0 });
+            this.callback.Update(new Message() { Domain = this.domain, Event = "patch", Identifier = Path.GetFileNameWithoutExtension(e.Name), Version = 0 }, false);
         }
 
         public void Close()

@@ -24,6 +24,8 @@ namespace io.harness.cfsdk.client.api
         void Update(Message msg);
 
         Task StartAsync();
+
+        void Close();
     }
 
     public class CfClient : ICfClient, IObservable<Event>
@@ -62,7 +64,9 @@ namespace io.harness.cfsdk.client.api
         public IDisposable Subscribe(NotificationType evn, IObserver<Event> observer) { return client.Subscribe(evn, observer); }
 
         // force message
-        public void Update(Message msg) { client.Update(msg);  }
+        public void Update(Message msg) { client.Update(msg, true);  }
+
+        public void Close() { client.Close();  }
 
     }
 }

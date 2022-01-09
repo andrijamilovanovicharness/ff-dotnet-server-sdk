@@ -64,8 +64,10 @@ namespace io.harness.cfsdk.client.cache
     }
 
 
-
-    public class FeatureSegmentCache : ICache
+    /// <summary>
+    /// In memory cache wrapper.
+    /// </summary>
+    internal class FeatureSegmentCache : ICache
     {
         private MemoryCache<string, object> memCache = new MemoryCache<string, object>();
 

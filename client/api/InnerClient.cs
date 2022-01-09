@@ -31,6 +31,8 @@ namespace io.harness.cfsdk.client.api
         private IUpdateProcessor update;
         private IEvaluator evaluator;
         private IMetricsProcessor metric;
+        private IConnector connector;
+
 
         public InnerClient(string apiKey, Config config)
         {
@@ -49,6 +51,7 @@ namespace io.harness.cfsdk.client.api
 
         public void Initialize(IConnector connector, Config config)
         {
+            this.connector = connector;
             this.authService = new AuthService(connector, config, this);
             this.repository = new StorageRepository(config.Cache, config.Store, this);
             this.polling = new PollingProcessor(connector, this.repository, config, this);
@@ -59,8 +62,8 @@ namespace io.harness.cfsdk.client.api
         public async Task StartAsync()
         {
             Log.Information("Initialize authentication");
-            // Start Authentication flow, and  
-            this.authService.StartAuthentication();
+            // Start Authentication flow  
+            this.authService.Start();
 
             var initWork = new[] {
                 this.polling.ReadyAsync()
@@ -79,7 +82,7 @@ namespace io.harness.cfsdk.client.api
         }
         public void OnStreamDisconnected()
         {
-            this.polling.StartPolling();
+            this.polling.Start();
         }
         #endregion
 
@@ -87,7 +90,7 @@ namespace io.harness.cfsdk.client.api
         public void OnAuthenticationSuccess()
         {
             // after successfull authentication, start 
-            polling.StartPolling();
+            polling.Start();
             update.Start();
             metric.Start();
         }
@@ -99,6 +102,10 @@ namespace io.harness.cfsdk.client.api
 
         #region Poller Callback
         public void OnPollerReady()
+        {
+
+        }
+        public void OnPollError(string message)
         {
 
         }
@@ -150,6 +157,17 @@ namespace io.harness.cfsdk.client.api
             return evaluator.JsonVariation(key, target, defaultValue);
         }
 
+        public void Close()
+        {
+            this.connector.Close();
+            this.observers.Clear();
+            this.authService.Stop();
+            this.repository.Close();
+            this.polling.Stop();
+            this.update.Stop();
+            this.metric.Stop();
+        }
+
         #region Notification managegement
 
         private void Notify(Event e)
@@ -179,9 +197,9 @@ namespace io.harness.cfsdk.client.api
             return new Unsubscriber(observers, observer, evn);
         }
 
-        public void Update(Message message)
+        public void Update(Message message, bool manual)
         {
-            this.update.Update(message);
+            this.update.Update(message, manual);
         }
 
         public void evaluationProcessed(FeatureConfig featureConfig, dto.Target target, Variation variation)

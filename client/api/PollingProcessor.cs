@@ -10,15 +10,37 @@ namespace io.harness.cfsdk.client.api
 {
     internal interface IPollCallback
     {
+        /// <summary>
+        /// After initial data poll
+        /// </summary>
         void OnPollerReady();
+
+        void OnPollError(string message);
     }
+
     internal interface IPollingProcessor
     {
+        /// <summary>
+        /// Stop pooling
+        /// </summary>
         void Stop();
-        void StartPolling();
+        /// <summary>
+        /// Start periodic pooling
+        /// </summary>
+        void Start();
+        /// <summary>
+        /// async function, returns after initial set of flags and segments are returned 
+        /// </summary>
+        /// <returns>true</returns>
         Task<bool> ReadyAsync();
     }
 
+    /// <summary>
+    /// This class is responsible to periodically read from server and persist all flags and
+    /// segments.
+    /// PollingProcessor will be always started after library is initialized, and continue to
+    /// read periodically date in case if SSE is turned off, or unavailable.  
+    /// </summary>
     internal class PollingProcessor : IPollingProcessor
     {
         private IConnector connector;
@@ -46,19 +68,22 @@ namespace io.harness.cfsdk.client.api
             });
         }
 
-        public void StartPolling()
+        public void Start()
         {
+            Log.Information($"Starting PollingProcessor with request interval: {this.config.pollIntervalInSeconds}");
+            // start timer which will initiate periodic reading of flags and segments
             pollTimer = new Timer(new TimerCallback(OnTimedEventAsync), null, 0, this.config.PollIntervalInMiliSeconds);
         }
         public void Stop()
         {
+            Log.Information("Stopping PollingProcessor");
+            // stop timer
             pollTimer.Dispose();
             pollTimer = null;
 
         }
         private void ProcessFlags()
         {
-
             try
             {
                 Log.Debug("Fetching flags started");
@@ -78,7 +103,6 @@ namespace io.harness.cfsdk.client.api
         }
         private void ProcessSegments()
         {
-
             try
             {
                 Log.Debug("Fetching segments started");
@@ -113,9 +137,10 @@ namespace io.harness.cfsdk.client.api
                     this.readyEvent.Set();
                 }
             }
-            catch
+            catch(Exception ex)
             {
                 Log.Information($"Polling will retry in {this.config.pollIntervalInSeconds}");
+                this.callback.OnPollError(ex.Message);
             }
         }
     }
